@@ -61,15 +61,21 @@ export default function AdminPage() {
       const filteredImageUrls = formData.imageUrls.filter(url => url.trim() !== '');
       const filteredPurchaseLinks = formData.purchaseLinks.filter(link => link.trim() !== '');
 
-      const giftData = {
+      const giftData: any = {
         name: formData.name,
         description: formData.description,
         imageUrl: formData.imageUrl,
-        imageUrls: filteredImageUrls.length > 0 ? filteredImageUrls : undefined,
         purchaseLink: formData.purchaseLink || '',
-        purchaseLinks: filteredPurchaseLinks.length > 0 ? filteredPurchaseLinks : undefined,
         isShared: formData.isShared,
       };
+
+      if (filteredImageUrls.length > 0) {
+        giftData.imageUrls = filteredImageUrls;
+      }
+
+      if (filteredPurchaseLinks.length > 0) {
+        giftData.purchaseLinks = filteredPurchaseLinks;
+      }
 
       if (editingGiftId) {
         await updateDoc(doc(db, 'gifts', editingGiftId), giftData);
