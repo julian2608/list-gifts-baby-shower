@@ -98,7 +98,7 @@ export default function Home() {
             Abigail Gutierrez Tapiero
           </h2>
           <p className="text-lg text-gray-600 italic mb-8">
-            Abigail significa "alegría del padre"
+            Abigail significa &quot;alegría del padre&quot;
           </p>
 
           <div className="max-w-2xl mx-auto bg-white/60 backdrop-blur-sm rounded-3xl p-6 shadow-lg mb-6">
