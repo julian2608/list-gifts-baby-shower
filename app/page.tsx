@@ -14,6 +14,8 @@ export default function Home() {
   const [claimingGift, setClaimingGift] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
   const [currentImageIndex, setCurrentImageIndex] = useState<{[key: string]: number}>({});
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'gifts'), orderBy('createdAt', 'desc'));
@@ -28,6 +30,41 @@ export default function Home() {
 
     return () => unsubscribe();
   }, []);
+
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = (giftId: string, allImages: string[]) => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    const currentIndex = currentImageIndex[giftId] || 0;
+    
+    if (isLeftSwipe) {
+      setCurrentImageIndex({
+        ...currentImageIndex,
+        [giftId]: (currentIndex + 1) % allImages.length
+      });
+    }
+    
+    if (isRightSwipe) {
+      setCurrentImageIndex({
+        ...currentImageIndex,
+        [giftId]: currentIndex === 0 ? allImages.length - 1 : currentIndex - 1
+      });
+    }
+  };
 
   const handleClaimGift = async (giftId: string, isShared: boolean, currentClaimedBy: string[]) => {
     if (!guestName.trim()) {
@@ -165,7 +202,15 @@ export default function Home() {
                 key={gift.id}
                 className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
               >
-                <div className="relative h-64 bg-gradient-to-br from-pink-100 to-purple-100 group">
+                <div 
+                  className="relative h-64 bg-gradient-to-br from-pink-100 to-purple-100 group"
+                  onTouchStart={onTouchStart}
+                  onTouchMove={onTouchMove}
+                  onTouchEnd={() => {
+                    const allImages = [gift.imageUrl, ...(gift.imageUrls || [])];
+                    onTouchEnd(gift.id, allImages);
+                  }}
+                >
                   {(() => {
                     const allImages = [gift.imageUrl, ...(gift.imageUrls || [])];
                     const currentIndex = currentImageIndex[gift.id] || 0;
