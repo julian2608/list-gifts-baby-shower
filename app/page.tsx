@@ -16,6 +16,8 @@ export default function Home() {
   const [currentImageIndex, setCurrentImageIndex] = useState<{[key: string]: number}>({});
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState<{[key: string]: number}>({});
+  const [isTransitioning, setIsTransitioning] = useState<{[key: string]: boolean}>({});
 
   useEffect(() => {
     const q = query(collection(db, 'gifts'), orderBy('createdAt', 'desc'));
@@ -33,17 +35,27 @@ export default function Home() {
 
   const minSwipeDistance = 50;
 
-  const onTouchStart = (e: React.TouchEvent) => {
+  const onTouchStart = (e: React.TouchEvent, giftId: string) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
+    setIsTransitioning({ ...isTransitioning, [giftId]: false });
   };
 
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+  const onTouchMove = (e: React.TouchEvent, giftId: string) => {
+    if (!touchStart) return;
+    
+    const currentTouch = e.targetTouches[0].clientX;
+    setTouchEnd(currentTouch);
+    
+    const diff = currentTouch - touchStart;
+    setSwipeOffset({ ...swipeOffset, [giftId]: diff });
   };
 
   const onTouchEnd = (giftId: string, allImages: string[]) => {
-    if (!touchStart || !touchEnd) return;
+    if (!touchStart || !touchEnd) {
+      setSwipeOffset({ ...swipeOffset, [giftId]: 0 });
+      return;
+    }
     
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > minSwipeDistance;
@@ -51,19 +63,25 @@ export default function Home() {
     
     const currentIndex = currentImageIndex[giftId] || 0;
     
+    setIsTransitioning({ ...isTransitioning, [giftId]: true });
+    
     if (isLeftSwipe) {
       setCurrentImageIndex({
         ...currentImageIndex,
         [giftId]: (currentIndex + 1) % allImages.length
       });
-    }
-    
-    if (isRightSwipe) {
+    } else if (isRightSwipe) {
       setCurrentImageIndex({
         ...currentImageIndex,
         [giftId]: currentIndex === 0 ? allImages.length - 1 : currentIndex - 1
       });
     }
+    
+    setSwipeOffset({ ...swipeOffset, [giftId]: 0 });
+    
+    setTimeout(() => {
+      setIsTransitioning({ ...isTransitioning, [giftId]: false });
+    }, 300);
   };
 
   const handleClaimGift = async (giftId: string, isShared: boolean, currentClaimedBy: string[]) => {
@@ -203,9 +221,9 @@ export default function Home() {
                 className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
               >
                 <div 
-                  className="relative h-64 bg-gradient-to-br from-pink-100 to-purple-100 group"
-                  onTouchStart={onTouchStart}
-                  onTouchMove={onTouchMove}
+                  className="relative h-64 bg-gradient-to-br from-pink-100 to-purple-100 group overflow-hidden"
+                  onTouchStart={(e) => onTouchStart(e, gift.id)}
+                  onTouchMove={(e) => onTouchMove(e, gift.id)}
                   onTouchEnd={() => {
                     const allImages = [gift.imageUrl, ...(gift.imageUrls || [])];
                     onTouchEnd(gift.id, allImages);
@@ -216,13 +234,21 @@ export default function Home() {
                     const currentIndex = currentImageIndex[gift.id] || 0;
                     return (
                       <>
-                        <Image
-                          src={allImages[currentIndex]}
-                          alt={gift.name}
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        />
+                        <div
+                          className="w-full h-full"
+                          style={{
+                            transform: `translateX(${swipeOffset[gift.id] || 0}px)`,
+                            transition: isTransitioning[gift.id] ? 'transform 0.3s ease-out' : 'none',
+                          }}
+                        >
+                          <Image
+                            src={allImages[currentIndex]}
+                            alt={gift.name}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          />
+                        </div>
                         {allImages.length > 1 && (
                           <>
                             <button
