@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { collection, onSnapshot, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Gift } from '@/types/gift';
-import { Gift as GiftIcon, Heart, Sparkles, Baby, ExternalLink } from 'lucide-react';
+import { Gift as GiftIcon, Heart, Sparkles, Baby, ExternalLink, Calendar, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -13,6 +13,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [claimingGift, setClaimingGift] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
+  const [currentImageIndex, setCurrentImageIndex] = useState<{[key: string]: number}>({});
 
   useEffect(() => {
     const q = query(collection(db, 'gifts'), orderBy('createdAt', 'desc'));
@@ -96,9 +97,41 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-semibold text-purple-700 mb-2">
             Abigail Gutierrez Tapiero
           </h2>
-          <p className="text-lg text-gray-600 italic">
+          <p className="text-lg text-gray-600 italic mb-8">
             Abigail significa "alegría del padre"
           </p>
+
+          <div className="max-w-2xl mx-auto bg-white/60 backdrop-blur-sm rounded-3xl p-6 shadow-lg mb-6">
+            <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12">
+              <div className="flex items-center gap-3">
+                <div className="bg-gradient-to-br from-pink-500 to-purple-500 p-3 rounded-2xl">
+                  <Calendar className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm text-gray-600 font-medium">Fecha</p>
+                  <p className="text-lg font-bold text-gray-800">07 de Febrero, 2026</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <div className="bg-gradient-to-br from-pink-500 to-purple-500 p-3 rounded-2xl">
+                  <MapPin className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm text-gray-600 font-medium">Dirección</p>
+                  <a 
+                    href="https://share.google/GctP29NDF1LscHKXQ"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-lg font-bold text-purple-700 hover:text-purple-800 hover:underline"
+                  >
+                    Carrera 82a # 42-47
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="mt-6 flex items-center justify-center gap-2 text-pink-600">
             <Heart className="w-5 h-5 fill-current" />
             <span className="text-sm font-medium">Lista de Regalos</span>
@@ -132,14 +165,58 @@ export default function Home() {
                 key={gift.id}
                 className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
               >
-                <div className="relative h-64 bg-gradient-to-br from-pink-100 to-purple-100">
-                  <Image
-                    src={gift.imageUrl}
-                    alt={gift.name}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  />
+                <div className="relative h-64 bg-gradient-to-br from-pink-100 to-purple-100 group">
+                  {(() => {
+                    const allImages = [gift.imageUrl, ...(gift.imageUrls || [])];
+                    const currentIndex = currentImageIndex[gift.id] || 0;
+                    return (
+                      <>
+                        <Image
+                          src={allImages[currentIndex]}
+                          alt={gift.name}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        />
+                        {allImages.length > 1 && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setCurrentImageIndex({
+                                  ...currentImageIndex,
+                                  [gift.id]: currentIndex === 0 ? allImages.length - 1 : currentIndex - 1
+                                });
+                              }}
+                              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              ←
+                            </button>
+                            <button
+                              onClick={() => {
+                                setCurrentImageIndex({
+                                  ...currentImageIndex,
+                                  [gift.id]: (currentIndex + 1) % allImages.length
+                                });
+                              }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              →
+                            </button>
+                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                              {allImages.map((_, idx) => (
+                                <div
+                                  key={idx}
+                                  className={`w-2 h-2 rounded-full transition-colors ${
+                                    idx === currentIndex ? 'bg-white' : 'bg-white/50'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                   {gift.isShared && (
                     <div className="absolute top-4 left-4 bg-purple-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
                       🎁 Múltiple
@@ -213,17 +290,40 @@ export default function Home() {
                             <Heart className="w-5 h-5" />
                             {gift.isShared ? 'Apartar También' : 'Apartar Regalo'}
                           </button>
-                          {gift.purchaseLink && (
-                            <a
-                              href={gift.purchaseLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-full bg-white border-2 border-purple-300 text-purple-700 py-3 rounded-xl font-semibold hover:bg-purple-50 transition-colors flex items-center justify-center gap-2"
-                            >
-                              <ExternalLink className="w-5 h-5" />
-                              Ver Producto
-                            </a>
-                          )}
+                          {(() => {
+                            const allLinks = [gift.purchaseLink, ...(gift.purchaseLinks || [])].filter(link => link);
+                            if (allLinks.length === 0) return null;
+                            if (allLinks.length === 1) {
+                              return (
+                                <a
+                                  href={allLinks[0]}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-full bg-white border-2 border-purple-300 text-purple-700 py-3 rounded-xl font-semibold hover:bg-purple-50 transition-colors flex items-center justify-center gap-2"
+                                >
+                                  <ExternalLink className="w-5 h-5" />
+                                  Ver Producto
+                                </a>
+                              );
+                            }
+                            return (
+                              <div className="space-y-2">
+                                <p className="text-xs text-gray-600 font-semibold">Opciones de compra:</p>
+                                {allLinks.map((link, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full bg-white border-2 border-purple-300 text-purple-700 py-2 rounded-xl font-semibold hover:bg-purple-50 transition-colors flex items-center justify-center gap-2 text-sm"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                    Opción {idx + 1}
+                                  </a>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>

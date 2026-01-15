@@ -3,7 +3,9 @@ export interface Gift {
   name: string;
   description: string;
   imageUrl: string;
+  imageUrls?: string[];
   purchaseLink: string;
+  purchaseLinks?: string[];
   isShared: boolean;
   claimedBy: string[];
   createdAt: number;
@@ -13,6 +15,8 @@ export interface GiftFormData {
   name: string;
   description: string;
   imageUrl: string;
+  imageUrls: string[];
   purchaseLink: string;
+  purchaseLinks: string[];
   isShared: boolean;
 }
